@@ -1,0 +1,246 @@
+var modal;
+var dsProduct;
+    // When the user clicks anywhere outside of the modal, close it
+    window.onclick = function(event) {
+      if (event.target == modal) {
+        modal.style.display = "none";
+      }
+    }
+
+    function closePopup(modalName) {
+      modal.style.display = "none";
+    }
+
+    // When the user clicks the button, open the modal
+    function openPopup(modalName) {
+      modal = document.getElementById('modl' + modalName);
+      modal.style.display = "block";
+    }
+    var xmlhttp = new XMLHttpRequest();
+    var url = "https://redsky.target.com/v1/plp/search/?count=24&offset=0&keyword=action+figures";
+    xmlhttp.onreadystatechange = function() {
+      if (this.readyState == 4 && this.status == 200) {
+        myArr = JSON.parse(this.responseText);
+        dsProduct = myArr.search_response.items.Item;
+        populateGrid();
+      }
+    };
+
+    xmlhttp.open("GET", url, true);
+    xmlhttp.send();
+
+    function populateGrid() {
+      arr = dsProduct;
+         urlw= new URL(location);       
+         filterProd= urlw.searchParams.get('filterName');
+         if (filterProd != null || filterProd != undefined) {      
+             arr = arr.filter(function(item) {
+                     return item.title.indexOf(filterProd) > -1;
+                });
+         }          
+         filterDesc= urlw.searchParams.get('filterDesc');
+         if (filterDesc != null || filterDesc != undefined) {      
+             arr = arr.filter(function(item) {
+                         return item.bullet_description.toString().indexOf(filterDesc) > -1;
+                });
+         }
+         compPrice = 'GT';
+         filterPriceGT = urlw.searchParams.get('filterPriceGT');
+         if (filterPriceGT != null || filterPriceGT != undefined) {
+             compPrice = 'GT';
+             arr = arr.filter(function (item) {
+                 return parseFloat(item.offer_price.price) >= parseFloat(filterPriceGT);
+             });
+         }
+
+         filterPriceLT = urlw.searchParams.get('filterPriceLT');
+         if (filterPriceLT != null || filterPriceLT != undefined) {
+             compPrice = 'LT';
+             arr = arr.filter(function (item) {
+                 return parseFloat(item.offer_price.price) <= parseFloat(filterPriceLT);;
+             });
+         }
+         filterPriceEQ = urlw.searchParams.get('filterPriceEQ');
+         if (filterPriceEQ != null || filterPriceEQ != undefined) {
+             compPrice = 'EQ';
+             arr = arr.filter(function (item) {
+                 return parseFloat(item.offer_price.price) == parseFloat(filterPriceEQ);;
+             });
+         }
+         sortOrder = urlw.searchParams.get('sort');
+         switch(sortOrder){        
+              case 'productUp':
+              arr.sort(compareName);
+              break;
+              case 'productDown':
+              arr.sort(compareNameDesc);
+              break;
+              case 'priceUp':
+              arr.sort(comparePrice);
+              break;
+              case 'priceDown':
+              arr.sort(comparePriceDesc);
+              break;
+              default:
+              arr.sort(compareName);
+         }
+         var out = "<table><tr><th> Product<a href='?sort=productUp'><img src='sortup.png' alt='SortUp'></a><a href='?sort=productDown'><img src='sortdown.png' alt='SortDown'></a></th>"
+              + "<th> Description</th>"
+              + "<th> Price  <a href='?sort=priceUp'><img src='sortup.png' alt='SortUp'></a><a href='?sort=priceDown'><img src='sortdown.png' alt='SortDown'></a></th> </tr>";
+         out += "<tr><th><input id='txtFilterName' type='text'><a class='btnFilter' onclick='addFilter(\"Name\")'><img src='filter.png' alt='Search'></a>    <a class='btnClear' onclick='clearFilter(\"Name\")'><img src='close.png' alt='Clear'></a></th>"
+             + "<th><input id='txtFilterDesc' type='text'><a class='btnFilter' onclick='addFilter(\"Desc\")'><img src='filter.png' alt='Search'></a>    <a class='btnClear' onclick='clearFilter(\"Desc\")'><img src='close.png' alt='Clear'></a></th>"
+             + "<th><select id='selCompare' onchange='selectCompare()' ><option value='GT'> >= </option><option value='LT'> <= </option><option value='EQ'> = </option></select> <div id='numComp'><input id='txtFilterPriceGT' type='text'><a class='btnFilter' onclick='addFilter(\"PriceGT\")'><img src='filter.png' alt='Search'></a></div>   <a class='btnClear' onclick='clearFilter(\"Price\")'><img src='close.png' alt='Clear'></a></th></tr>"
+			 
+      var i, modl = "";
+      for (i = 0; i < arr.length; i++) {
+        desc = arr[i].bullet_description.toString();
+        var find = '<B>';
+        var re = new RegExp(find, 'g');
+        desc = desc.replace(re, '</br><B>');
+        out += '<tr  onclick="openPopup(' + arr[i].tcin + ')"><td>' + arr[i].title + '</td><td>' + desc + '</td><td>' + arr[i].offer_price.formatted_price + '</td></tr>';
+        modl += '<div id="modl' + arr[i].tcin + '" class="modal"><div class="modal-content"><span class="close" onclick="closePopup()">&times;</span><p>' + arr[i].title + '</p><p>' + arr[i].description + '</p></div></div>';
+      }
+
+      out += "</table>";
+      document.getElementById("productTbl").innerHTML = out + modl;
+      document.getElementById("txtFilterName").value = filterProd;
+      document.getElementById("txtFilterDesc").value = filterDesc;
+      document.getElementById("selCompare").value = compPrice;
+      document.getElementById("selCompare").dispatchEvent(new Event('change'));
+
+      switch (compPrice) {
+          case 'GT':           
+              document.getElementById("txtFilterPriceGT").value = parseFloat(filterPriceGT);
+              break;
+          case 'LT':
+              document.getElementById("txtFilterPriceLT").value = parseFloat(filterPriceLT);
+              break;
+          case 'EQ':
+              document.getElementById("txtFilterPriceEQ").value = parseFloat(filterPriceEQ);
+              break;
+          default:
+              document.getElementById("txtFilterPriceGT").value = '';
+              document.getElementById("txtFilterPriceLT").value = '';
+              document.getElementById("txtFilterPriceEQ").value = '';
+      }
+    }
+
+    function selectCompare() {
+        var x = document.getElementById("selCompare").value;
+        var ctr = "";
+        switch (x) {
+            case 'GT':
+                ctr = "<input id='txtFilterPriceGT' type='text'><a class='btnFilter' onclick='addFilter(\"PriceGT\")'><img src='filter.png' alt='Search'></a>";
+                break;
+            case 'LT':
+                ctr = "<input id='txtFilterPriceLT' type='text'><a class='btnFilter' onclick='addFilter(\"PriceLT\")'><img src='filter.png' alt='Search'></a>";
+                break;
+            case 'EQ':
+                ctr = "<input id='txtFilterPriceEQ' type='text'><a class='btnFilter' onclick='addFilter(\"PriceEQ\")'><img src='filter.png' alt='Search'></a>";
+                break;
+            default:
+                ctr = "<input id='txtFilterPriceGT' type='text'><a class='btnFilter' onclick='addFilter(\"PriceGT\")'><img src='filter.png' alt='Search'></a>";
+        }
+        document.getElementById("numComp").innerHTML = ctr;
+    }
+
+ 
+
+    function addFilter(filterName) {
+        url =location.toString();
+		if (url.indexOf('?') == -1) {
+            url += '?act=Y';
+        }
+        if (filterName.indexOf('filterPrice') != -1) {
+            url = removeFilter('Price');
+        }
+        var filterTxt = document.getElementById("txtFilter"+filterName).value;
+        var nextPg;
+        if (url.indexOf("&filter" + filterName) == -1) {
+            //add          
+            nextPg = new URL(url + "&filter" + filterName + "=" + filterTxt);
+        }
+        else{
+            //update           
+            var urlSplit = url.split('&filter' + filterName);
+            if ((urlSplit[1]).indexOf('&') == -1)
+                nextPg = new URL(urlSplit[0] + "&filter" + filterName + "=" + filterTxt);
+            else {
+                var n =(urlSplit[1]).indexOf('&');
+                nextPg = new URL(urlSplit[0] + "&filter" + filterName + "=" + filterTxt + urlSplit[1].slice(n));
+            }
+        }
+        window.location.href = nextPg;
+    }
+
+    function clearFilter(filterName)
+    {
+        window.location.href = removeFilter(filterName);
+    }
+
+    function removeFilter(filterName) {
+        url = location.toString();
+        var urlSplit = url.split('&filter'+filterName);
+        if ((urlSplit[1]).indexOf('&') == -1)
+            url = urlSplit[0];
+        else {
+            var n = (urlSplit[1]).indexOf('&');
+            url = urlSplit[0] + urlSplit[1].slice(n);
+        }
+        return url;
+    }
+
+    function compareName(a, b) {
+      // Use toUpperCase() to ignore character casing
+      const genreA = a.title.toUpperCase();
+      const genreB = b.title.toUpperCase();
+      let comparison = 0;
+      if (genreA > genreB) {
+        comparison = 1;
+      } else if (genreA < genreB) {
+        comparison = -1;
+      }
+      return comparison;
+    }
+
+    function compareNameDesc(a, b) {
+      // Use toUpperCase() to ignore character casing
+      const genreA = a.title.toUpperCase();
+      const genreB = b.title.toUpperCase();
+	  let comparison = 0;
+      if (genreA > genreB) {
+        comparison = 1;
+      } else if (genreA < genreB) {
+        comparison = -1;
+      }
+      return comparison * -1;
+    }
+
+
+    function comparePrice(a, b) {
+      // Use toUpperCase() to ignore character casing
+      const genreA = a.offer_price.price;
+      const genreB = b.offer_price.price;
+      let comparison = 0;
+      if (genreA > genreB) {
+        comparison = 1;
+      } else if (genreA < genreB) {
+        comparison = -1;
+      }
+      return comparison;
+    }
+
+ 
+
+    function comparePriceDesc(a, b) {
+      // Use toUpperCase() to ignore character casing
+      const genreA = a.offer_price.price;
+      const genreB = b.offer_price.price;
+      let comparison = 0;
+      if (genreA > genreB) {
+        comparison = 1;
+      } else if (genreA < genreB) {
+        comparison = -1;
+      }
+      return comparison * -1;
+    }
